@@ -1,0 +1,164 @@
+---
+title: "Homework 1"
+author: "Jagoda Trzeciak"
+date: "2025-03-13"
+output: pdf_document
+---
+
+## Load required libraries
+
+```{r load_hidden, echo=FALSE, results="hide", warning=FALSE}
+suppressPackageStartupMessages({
+  library(devtools)
+  library(Biobase)
+  library(limma)
+  library(edge)
+  library(genefilter)
+  library(qvalue)
+  library(tidyverse)
+  library(corpcor)
+  library(data.table)
+  library(jackstraw)
+})
+```
+
+```{r load}
+library(devtools)
+library(Biobase)
+library(limma)
+library(edge)
+library(genefilter)
+library(qvalue)
+library(tidyverse)
+library(data.table)
+library(corpcor)
+library(ggpubr)
+```
+
+## Load the data
+
+```{r}
+load(file="bottomly.Rdata")
+ls()
+
+edata <- as.matrix(exprs(bottomly.eset))
+dim(edata)
+edata[1:5,1:5]
+edata <- edata[rowMeans(edata) > 10, ]
+edata <- log2(as.matrix(edata) + 1)
+```
+
+## Homework Problem 1
+
+*Make one heatmap of the aforementioned Bottomly data with the following options: a) both rows and columns are clustered, b) show a dendrogram only on the columns., and c) scale in the column direction. Send only one heatmap. If you are unsure, check the help document on this function by typing ?heatmap.2*
+
+```{r}
+library(RColorBrewer)
+library(gplots)
+
+my_palette <- colorRampPalette(c("blue", "white", "orange"))(n = 299)
+
+# Option a) should be provided by default
+
+pdf("Trzeciak_problem1.pdf", height=8, width=10)
+heatmap.2(edata, 
+          main="Trzeciak_problem1", 
+          notecol="black", 
+          density.info="none", 
+          trace="none", 
+          margin=c(12,9), 
+          col=my_palette, 
+          dendrogram="colum", #option b)
+          scale="column" #option c)
+)
+dev.off()
+```
+
+![](images/clipboard-3417127702.png)
+
+## Homework Problem 2
+
+*As shown in the plot above, the projection on the top 2 PCs doesn't show the grouping by the strains. But we have many PCs to explore. Explore different combinations of PCs in scatter plots while coloring the data points by the genetic strains. Find a combination of PCs that separate the strains well. Send only one scatterplot.*
+
+```{r}
+edata <- t(scale(t(edata), scale=FALSE, center=TRUE))
+svd.out <- svd(edata)
+PC = data.table(svd.out$v,pData(bottomly.eset))
+
+pdf("Trzeciak_problem2.pdf", width=7, height=5)
+ggplot(PC) + 
+  geom_point(aes(x=V2, y=V3, col=as.factor(strain))) +
+  labs(title="Trzeciak_problem2")
+dev.off()
+```
+
+![](images/clipboard-1030064737.png)
+
+## Homework Problem 3
+
+*Make a scatter plot of the top 2 left singular vectors.*
+
+```{r}
+lsv = data.table(index=1:nrow(svd.out$u), U1=svd.out$u[,1], U2=svd.out$u[,2])
+
+pdf("Trzeciak_problem3.pdf", width=8, height=5)
+ggplot(lsv, aes(x=U1, y=U2)) + 
+  geom_point(alpha=0.6, color="black") + 
+  labs(title="Trzeciak_problem3", x="U1", y="U2")
+dev.off()
+```
+
+![](images/clipboard-1389593752.png)
+
+## Homework Problem 4
+
+*Make one figure that contains violin plots of the top 5 left singular vectors (loadings). Hint/To-do: Make sure turn the top 5 left singular vectors into a data.table (or a data.frame) and ggplot2 to plot them altogether. Do not send 5 figures!*
+
+```{r echo=FALSE}
+loadings = data.table(svd.out$u,pData(bottomly.eset))
+
+V1 <- ggplot(loadings) +
+  geom_violin(aes(x=as.factor(strain), y=V1), draw_quantiles=c(0.25, 0.5, 0.75))
+V2 <- ggplot(loadings) +
+  geom_violin(aes(x=as.factor(strain), y=V2), draw_quantiles=c(0.25, 0.5, 0.75))
+V3 <- ggplot(loadings) +
+  geom_violin(aes(x=as.factor(strain), y=V3), draw_quantiles=c(0.25, 0.5, 0.75))
+V4 <- ggplot(loadings) +
+  geom_violin(aes(x=as.factor(strain), y=V4), draw_quantiles=c(0.25, 0.5, 0.75))
+V5 <- ggplot(loadings) +
+  geom_violin(aes(x=as.factor(strain), y=V5), draw_quantiles=c(0.25, 0.5, 0.75))
+
+figure <- ggarrange(ggarrange(V1, V2, V3, labels=c("V1", "V2", "V3"), ncol=3, nrow=1), 
+                    ggarrange(V4, V5, labels=c("V4", "V5"), ncol=2, nrow=1), ncol=1, nrow=2) +
+  labs(title="Trzeciak_problem4")
+
+ggsave("Trzeciak_problem4.pdf", plot = figure, width = 10, height = 9, dpi = 300)
+```
+
+![](images/clipboard-2067988920.png)
+
+## Homework Problem 5
+
+*Cluster the genes (rows) using K-means clustering (function `kmeans()`) on the original data, with `k=5` clusters. Then, create a 2-dimensional t-SNE projection (as done previously) while using the 5 clusters to color the data points corresponding to genes.*
+
+```{r}
+library(irlba)
+library(Rtsne)
+
+set.seed(1)
+tsne_out <- Rtsne(edata,pca=FALSE,perplexity=60)
+tsne_out = data.table(tsne_out$Y)
+
+clusters <- kmeans(edata, centers=5)
+tsne_out[, cluster := as.factor(clusters$cluster)] 
+
+pdf("Trzeciak_problem5.pdf", width=8, height=6)
+ggplot(tsne_out) + 
+  geom_point(aes(x=V1, y=V2, color=cluster)) + 
+  labs(title="Trzeciak_problem5",
+       x="V1", y="V2", color="Cluster") +
+  theme_minimal()
+dev.off()
+```
+
+![](images/clipboard-252709185.png)
