@@ -74,8 +74,6 @@ heatmap.2(edata,
 dev.off()
 ```
 
-![](images/clipboard-3417127702.png)
-
 ## Homework Problem 2
 
 *As shown in the plot above, the projection on the top 2 PCs doesn't show the grouping by the strains. But we have many PCs to explore. Explore different combinations of PCs in scatter plots while coloring the data points by the genetic strains. Find a combination of PCs that separate the strains well. Send only one scatterplot.*
@@ -92,8 +90,6 @@ ggplot(PC) +
 dev.off()
 ```
 
-![](images/clipboard-1030064737.png)
-
 ## Homework Problem 3
 
 *Make a scatter plot of the top 2 left singular vectors.*
@@ -107,8 +103,6 @@ ggplot(lsv, aes(x=U1, y=U2)) +
   labs(title="Trzeciak_problem3", x="U1", y="U2")
 dev.off()
 ```
-
-![](images/clipboard-1389593752.png)
 
 ## Homework Problem 4
 
@@ -135,8 +129,6 @@ figure <- ggarrange(ggarrange(V1, V2, V3, labels=c("V1", "V2", "V3"), ncol=3, nr
 ggsave("Trzeciak_problem4.pdf", plot = figure, width = 10, height = 9, dpi = 300)
 ```
 
-![](images/clipboard-2067988920.png)
-
 ## Homework Problem 5
 
 *Cluster the genes (rows) using K-means clustering (function `kmeans()`) on the original data, with `k=5` clusters. Then, create a 2-dimensional t-SNE projection (as done previously) while using the 5 clusters to color the data points corresponding to genes.*
@@ -160,5 +152,3 @@ ggplot(tsne_out) +
   theme_minimal()
 dev.off()
 ```
-
-![](images/clipboard-252709185.png)
