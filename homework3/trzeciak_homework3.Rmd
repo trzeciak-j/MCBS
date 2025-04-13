@@ -1,0 +1,155 @@
+---
+title: "trzeciak_homework3"
+author: "Jagoda Trzeciak"
+date: "2025-04-09"
+output: html_document
+---
+
+# Homework Problem 1
+Analyze the 68k PBMCs dataset in the same way as presented in the Seurat's guide with PBMC3k. Apply QC, PCA, jackstraw, clustering, and t-SNE to create figure similar to Figure 3b on Zheng et al. 2017. Note that there are differences between Zheng's original analysis and Seurat's analysis. Pay attentions to hyper-parameters that you must choose for this new bigger dataset.
+
+Present the t-SNE visualization with 10 clusters as defined by K-means clustering
+
+Reproduce Figure 3 but note difference in results: https://www.nature.com/articles/ncomms14049/figures/3
+
+
+## Load the data
+```{r}
+library(Seurat)
+library(dplyr)
+library(patchwork)
+
+pbmc.data <- Read10X(data.dir = "fresh_68k_pbmc_donor_a_raw_gene_bc_matrices/matrices_mex/hg19")
+
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc68k", min.cells = 3, min.features = 200)
+pbmc
+```
+
+## QC
+```{r}
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3,pt.size=0.05,alpha=0.1)
+plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt") 
+plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA") 
+plot1 + plot2
+
+pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5)
+```
+
+## Normalizing the data
+```{r}
+pbmc <- NormalizeData(pbmc)
+```
+## Identification of highly variable features (feature selection)
+```{r}
+pbmc <- FindVariableFeatures(pbmc, selection.method = 'vst', nfeatures = 2000)
+
+top10 <- head(VariableFeatures(pbmc), 10)
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+plot1 + plot2
+```
+
+## Scaling the data
+```{r}
+all.genes <- rownames(pbmc)
+# pbmc <- ScaleData(pbmc, features = all.genes)
+pbmc <- ScaleData(pbmc)
+```
+## Perform linear dimensional reduction
+```{r}
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+print(pbmc[['pca']], dims = 1:5, nfeatures = 5)
+VizDimLoadings(pbmc, dims = 1:2, reduction = 'pca')
+DimPlot(pbmc, reduction = 'pca')
+DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
+```
+
+## Jackstraw
+```{r}
+pbmc <- JackStraw(pbmc, num.replicate = 20)
+pbmc <- ScoreJackStraw(pbmc, dims = 1:20)
+JackStrawPlot(pbmc, dims = 1:20)
+ElbowPlot(pbmc)
+```
+
+## Clustering
+```{r}
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+pbmc <- FindClusters(pbmc, resolution = 0.2)
+```
+## tSNE
+```{r}
+library(ggplot2)
+
+set.seed(42)
+
+pbmc <- RunTSNE(pbmc, reduction = 'pca', dims=1:10, reduction.name='tsne')
+pca.embeddings <- Embeddings(pbmc, reduction = "pca")[, 1:20]
+kmeans.res <- kmeans(pca.embeddings, centers = 10)
+pbmc$kmeans_cluster <- as.factor(kmeans.res$cluster)
+
+cluster_freq <- prop.table(table(pbmc$kmeans_cluster)) * 100
+new_labels <- paste0("Cluster ", names(cluster_freq), "\n", round(cluster_freq, 1), "%")
+names(new_labels) <- names(cluster_freq)
+
+pbmc_clustering <- SetIdent(pbmc, value = "kmeans_cluster")
+pbmc_clustering <- RenameIdents(pbmc_clustering, new_labels)
+
+pdf("Trzeciak_problem1.pdf")
+DimPlot(pbmc_clustering, reduction = "tsne", label = TRUE, pt.size = 0.5)  + ggtitle("Trzeciak_problem1")
+dev.off()
+```
+
+# Homework problem 2
+Create a hierachical clustering by applying K-means clustering to cells defined by each of 10 cluster. Try to find a suitable number of clusters (k) for each sub-population.
+```{r}
+library(cluster)
+
+pbmc$sub_cluster <- NA
+main_clusters <- levels(pbmc$kmeans_cluster)
+
+pbmc <- SetIdent(pbmc, value = "kmeans_cluster")
+for (cl in main_clusters) {
+  cells.in.cluster <- WhichCells(pbmc, idents = cl)
+  cluster.pca <- pca.embeddings[cells.in.cluster, ]
+  
+  best_sil <- -1
+  best_k <- 2
+  for (k in 2:5) {
+    km <- kmeans(cluster.pca, centers = k)
+    sil <- silhouette(km$cluster, dist(cluster.pca))
+    
+    if (mean(sil[,3]) > best_sil) {
+      best_sil <- mean(sil[,3])
+      best_k <- k
+    }
+  }
+  
+  set.seed(42)
+  kmeans.res <- kmeans(cluster.pca, centers = best_k)
+  
+  pbmc$sub_cluster[cells.in.cluster] <- paste0("C", cl, "_", kmeans.res$cluster)
+}
+```
+
+```{r}
+library(patchwork)
+
+pdf("Trzeciak_problem2.pdf", width = 12, height = 12)
+
+overall_plot <- DimPlot(pbmc, reduction = "tsne", group.by = "sub_cluster", label = TRUE, repel = TRUE) +
+  ggtitle("Overall t-SNE with all clusters")
+print(overall_plot)
+
+subplots <- list()
+for (cl in main_clusters) {
+  p <- DimPlot(pbmc, reduction = "tsne", cells = WhichCells(pbmc, idents = cl), group.by = "sub_cluster") +
+      ggtitle(paste("Subclusters of Cluster", cl)) + theme(plot.title = element_text(size = 12))
+  subplots[[cl]] <- p
+}
+
+print(wrap_plots(subplots, ncol = 2))
+
+dev.off()
+```
