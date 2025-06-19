@@ -66,7 +66,7 @@ plotQualityProfile(revs[1:2])
 <img src="figures/quality_rev_plot.png" width="48%" />
 </div>
 
-The **quality profiles** of the first two samples show that forward reads maintain high quality (Q>30) up to the cycle 270-280. However, after that point we observe rapid drop of quality. Reverse reads, as expected, show a steeper decline in quality starting around cycle 160-170. Based on this inspection, forward reads were truncated at position **270** and reverse reads at position **160** using `truncLen=c(270, 160)` parameter in the `filterAndTrim()` function from the DADA2 package, ensuring that only the most reliable fragments of the reads are retained for further denoising and analysis.
+The **quality profiles** of the first two samples show that forward reads maintain high quality (Q>30) up to the cycle 270-280. However, after that point a rapid drop in quality was observed. Reverse reads, as expected, show a steeper decline in quality starting around cycle 160-170. Based on this inspection, forward reads were truncated at position **270** and reverse reads at position **160** using `truncLen=c(270, 160)` parameter in the `filterAndTrim()` function from the DADA2 package, ensuring that only the most reliable fragments of the reads are retained for further denoising and analysis.
 
 ```{r filtering_and_trimming, echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE}
 filtered_path <- "./data/16S/filtered_reads"
@@ -103,7 +103,7 @@ plotErrors(err_rev, nominalQ = TRUE)
 <img src="figures/err_rev_plot.png" width="48%" />
 </div>
 
-The error rate plots visualize how well the DADA2 model captures sequencing error patterns by comparing observed error frequencies (*black points*) with the fitted error model (*red lines*) across all possible nucleotide transitions. In both panels (for forward and reverse reads) we see that the black points closely follow the red lines across base substitution types. This indicates a good fit between the model and the data, suggesting that the learned error model accurately reflect the actual error behavior in the dataset.
+The error rate plots visualize how well the DADA2 model captures sequencing error patterns by comparing observed error frequencies (*black points*) with the fitted error model (*red lines*) across all possible nucleotide transitions. In both panels (for forward and reverse reads), the black points were observed to closely follow the red lines across base substitution types. This indicates a good fit between the model and the data, suggesting that the learned error model accurately reflect the actual error behavior in the dataset.
 
 The next step in the DADA2 pipeline is **dereplication**, which involves collapsing identical sequencing reads within each sample into unique sequences. This process significantly reduces computional complexity and increases the efficiency by removing redundancy from the dataset. Performing dereplication before error correction allows DADA2 to more effectively distinguish true biological variation from sequencing errors.
 
@@ -115,7 +115,7 @@ names(fwds_dereplicated) <- sample_names
 names(revs_dereplicated) <- sample_names
 ```
 
-With dereplicated data prepared we now proceed to denoising, where DADA2 applies its leaned error models to infer the true composition of the microbial community. By evaluating each unique sequence in the context of its frequency and the expected error rate, DADA2 determines whether the sequence is likely a genuine variant or a result of sequencing noise. This results in high-resolution ASVs, which provide more accurate insight into microbial diversity.
+With the dereplicated data prepared, denoising was subsequently performed using the error models learned by DADA2 to infer the true composition of the microbial community. Each unique sequence was evaluated based on its frequency and the expected error rate to determine whether it represented a genuine variant or sequencing noise. As a result, high-resolution amplicon sequence variants (ASVs) were obtained, offering a more accurate view of microbial diversity.
 
 ```{r denoising, echo=TRUE, warning=FALSE, message=FALSE, eval=FALSE}
 dada_fwd <- dada(fwds_dereplicated, err = err_fwd, multithread = TRUE)
@@ -132,14 +132,14 @@ merged_reads <- mergePairs(dada_fwd, fwds_dereplicated, dada_rev, revs_dereplica
 
 ### Taxonomic classification
 
-After successfully merging paired-end reads, the next step is to construct a sequence table using the `makeSequenceTable()` function. This function compiles all merged sequences across samples into a matrix, where each row corresponds to a sample and each column corresponds to a unique ASV. In case of this dataset, we have retained **221 ASVs for 15 samples**.
+After successfully merging paired-end reads, the next step is to construct a sequence table using the `makeSequenceTable()` function. This function compiles all merged sequences across samples into a matrix, where each row corresponds to a sample and each column corresponds to a unique ASV. In case of this dataset, **221 ASVs were retained for 15 samples**.
 
 ```{r sequence_table, echo=TRUE, warning=FALSE, message=FALSE, eval=FALSE}
 sequence_table <- makeSequenceTable(merged_reads)
 dim(sequence_table)
 ```
 
-However, **not all of these ASVs necessarily represent real biological sequences**. During PCR amplification, chimeric sequences can arise when fragments from different DNA are joined together. These chimeras can distort taxonomic assignments, that's why we use `removeBimeraDenovo()` function to identify and eliminate chimeric fragments across all samples. After this quality control, the number of retained ASVs is reduced- from **221** to **194**.
+However, **not all of these ASVs necessarily represent real biological sequences**. During PCR amplification, chimeric sequences can arise when fragments from different DNA are joined together. These chimeras can distort taxonomic assignments, therefore the `removeBimeraDenovo()` function was used to identify and eliminate chimeric fragments across all samples. After this quality control, the number of retained ASVs is reduced- from **221** to **194**.
 
 ```{r remove_chimeras, echo=TRUE, warning=FALSE, message=FALSE, eval=FALSE}
 sequence_table.nochim <- removeBimeraDenovo(sequence_table, method="consensus", multithread=TRUE, verbose=TRUE)
@@ -149,10 +149,10 @@ dim(sequence_table.nochim)
 The final step of 16S microbiome data pre-processing is **taxonomic classification**, where biological meaning is assigned to each unique sequence variant identified. Using reference database (such as [SILVA](https://www.arb-silva.de/documentation/release-138.1/)), the `assignTaxonomy()` function compares each ASV to known sequences and assigns it to the appropriate taxonomic ranks. 
 
 ```{r assign_taxa, echo=TRUE, warning=FALSE, message=FALSE, eval=FALSE}
-taxa <- assignTaxonomy(seqtab.nochim, "data/16S/silva_nr99_v138.1_train_set.fa.gz", multithread = TRUE)
+taxa <- assignTaxonomy(sequence_table.nochim, "data/16S/silva_nr99_v138.1_train_set.fa.gz", multithread = TRUE)
 
-write.csv(sequence_table.nochim, "./data/results/otu_table.csv")
-write.csv(taxa, "./data/results/taxonomy_table.csv")
+write.csv(sequence_table.nochim, "results/otu_table.csv")
+write.csv(taxa, "results/taxonomy_table.csv")
 ```
 
 ## 16 Data Analysis
@@ -161,7 +161,7 @@ write.csv(taxa, "./data/results/taxonomy_table.csv")
 
 **Alpha diversity** measures the diversity within individual samples, capturing both **richness** (the number of different taxa present) and **evenness** (how evenly distributed those taxa are). It provides insight into the complexity of microbial communities and is commonly used to compare microbial composition across samples.
 
-In this analysis, we calculate three standard alpha diversity indices: 
+In this analysis, three standard alpha diversity indices were calculated:
 
 - **Shannon**- accounts for both richness and evenness, giving more weight to rare species (higher values indicate more diverse and evenly distributed communities),
 
@@ -170,10 +170,10 @@ In this analysis, we calculate three standard alpha diversity indices:
 - **Inverse Simpson**- simplifies interpretation by assigning higher values to more diverse communities.
 
 ```{r alpha_diversity, echo=TRUE, warning=FALSE, message=FALSE, eval=FALSE}
-otu_df <- read.csv("data/results/otu_table.csv", row.names = 1, check.names = FALSE)
+otu_df <- read.csv("results/otu_table.csv", row.names = 1, check.names = FALSE)
 otu <- otu_table(as.matrix(otu_df), taxa_are_rows = FALSE)
 
-taxa_df <- read.csv("data/results/taxonomy_table.csv", row.names = 1, check.names = FALSE)
+taxa_df <- read.csv("results/taxonomy_table.csv", row.names = 1, check.names = FALSE)
 taxa <- tax_table(as.matrix(taxa_df))
 
 ps <- phyloseq(otu, taxa)
@@ -188,12 +188,9 @@ alpha_long <- alpha_div_filtered %>%
 ggplot(alpha_long, aes(x = Measure, y = Value, fill = Measure)) +
   geom_violin(trim = FALSE, alpha = 0.7) +
   geom_jitter(width = 0.15, size = 1, alpha = 0.8) +
-  labs(title = "Alpha Diversity Measures",
-       x = "Diversity Measure",
-       y = "Value") +
+  labs(title = "Alpha Diversity Measures", x = "Diversity Measure", y = "Value") +
   theme_minimal() +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.position = "right") +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "right") +
   coord_cartesian(ylim = c(0, 15))
 ```
 <div style="display: flex; justify-context: center;">
@@ -242,8 +239,7 @@ for (level in levels) {
     ps_level <- tax_glom(ps_rel, taxrank = level)
     
     p <- plot_bar(ps_level, fill = level) +
-    labs(title = paste("Composition at", level, "Level"),
-         y = "Relative Abundance") +
+    labs(title = paste("Composition at", level, "Level"), y = "Relative Abundance") +
     theme_minimal() +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
@@ -376,7 +372,7 @@ combined_plot <- p_all + p_sig
 <img src="figures/log2FC_histograms.png" width="80%" />
 </div>
 
-The left panel displays the distribution of  log₂ fold changes for all genes. The data is tightly centered around 0, indicating that most genes do not show significant differences in expression between tumor and non-tumor tissues. This is typical in transcriptomic studies, where only a subset of genes is usually differentially expressed, while the majority remain relatively stable.
+The left panel displays the distribution of log₂ fold changes for all genes. The data is tightly centered around 0, indicating that most genes do not show significant differences in expression between tumor and non-tumor tissues. This is typical in transcriptomic studies, where only a subset of genes is usually differentially expressed, while the majority remain relatively stable.
 The right panel shows only statistically significant genes, filtered by ***adjusted p* < 0.05** and **|log₂FC| ≥ 0.8**. This distribution is clearly **bimodal**, with two peaks symmetrically distributed around zero. These peaks represent genes that are either upregulated or downregulated in tumor tissue compared to adjacent non-tumor tissue, reflecting biologically meaningful expression changes related to cancer progression.
 
 ### Differential gene expression analysis 
@@ -401,10 +397,10 @@ gene_annotations <- AnnotationDbi::select(org.Hs.eg.db,
 deg_counts <- norm_counts[gene_annotations$ENTREZID, ]
 
 rownames(deg_counts) <- gene_annotations$SYMBOL
-deg_counts_scaled <- t(scale(t(degs_counts)))
+deg_counts_scaled <- t(scale(t(deg_counts)))
 
 annotation_column <- data.frame(Condition = coldata$condition)
-rownames(annotation_colum) <- rownames(coldata)
+rownames(annotation_column) <- rownames(coldata)
 
 pheatmap(deg_counts_scaled,
          annotation_col = annotation_colum,
@@ -422,7 +418,7 @@ pheatmap(deg_counts_scaled,
 <img src="figures/DEGs_heatmap.png" width="80%" />
 </div>
 
-Each row of this heatmap represents a gene and each column corresponds to a sample. We observe clear separation between tumor and non-tumor samples, reflecting distinct transcriptional profiles associated with each condition. This clustering of samples reveals a distinct set of genes whose expression profiles differentiate tumor from non-tumor tissues in *hepatocellular carcinoma*. Many of these genes are known to play key roles in cancer-related pathways or normal hepatic function.
+Each row of this heatmap represents a gene and each column corresponds to a sample. A clear separation between tumor and non-tumor samples was observed, reflecting distinct transcriptional profiles associated with each condition. This clustering of samples reveals a distinct set of genes whose expression profiles differentiate tumor from non-tumor tissues in *hepatocellular carcinoma*. Many of these genes are known to play key roles in cancer-related pathways or normal hepatic function.
 
 For instance, **GPC3 (*glypican-3*)** is oncofetal protein specifically upregulated in HCC and rarely expressed in normal liver tissue. It promotes tumor cell proliferation and migration by modulating signaling pathways. Similarly, **CDC25C (*Cell Division Cycle 25C*)** and **CDC20 (*Cell Division Cycle 20*)** are key regulators of the cell cycle, facilitating the G2/M transition. Their overexpression in tumor samples indicated increased cell proliferation, which is one of the main characteristic of cancer. Another gene, **CCT3 (*Chaperonin Containing TCP1 Subunit 3*)**, may regulate lipid metabolism in HCC, potentially impacting tumor growth. Many studies have shown that its overexpression is associated with poor prognosis.
 
@@ -430,7 +426,7 @@ On the other hand, several genes are more highly expressed in non-tumor liver ti
 
 ### Potential HCC biomarkers prediction
 
-Observing the distinct gene expression patterns between tumor and non-tumor samples, we sought to identify genes that could serve as potential biomarkers for HCC. Using these expression levels of top differentially expressed genes as input features, the **Random Forest** model was trained to classify samples based on their condition (tumor vs. non-tumor). Once trained, the model ranked genes by their contribution to classification accuracy, providing an importance score for each feature. 
+Based on the distinct gene expression patterns between tumor and non-tumor samples, genes that could serve as potential biomarkers for HCC were identified. Using these expression levels of top differentially expressed genes as input features, the **Random Forest** model was trained to classify samples based on their condition (tumor vs. non-tumor). Once trained, the model ranked genes by their contribution to classification accuracy, providing an importance score for each feature. 
 
 ```{r biomarkers_prediction, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE}
 df <- data.frame(t(deg_counts), condition = coldata$condition)
@@ -464,11 +460,11 @@ Although **GPC3**, described earlier, is one of the most well-established biomar
 
 The final part of this analysis focuses on investigating possible interactions between gut microbiome and hepatocellular carcinoma. However, this attempt is significantly constrained by a key limitation: the original study from which the data were sourced did not provide metadata linking individual fecal samples to the corresponding liver tissue samples. Due to the lack of that metadata, all microbiome and liver tissue samples were assigned standardized names in the format `Sample_X`, based purely on their order in the dataset to enable alignment between the microbiome and transcriptomic data.
 
-To investigate potential relationships between microbial taxa (OTUs) and differentially expressed genes (DEGs), we analyzed the expression data for tumor liver tissue samples. A subset of matched samples was extracted by intersecting sample names across datasets. **Pearson correlation** coefficients were then calculated between each OTU and each DEG, resulting in a correlation matrix.
-
+To investigate potential relationships between microbial taxa (OTUs) and differentially expressed genes (DEGs), the expression data for tumor liver tissue samples were analyzed. A subset of matched samples was extracted by intersecting sample names across datasets. **Pearson correlation** coefficients were then calculated between each OTU and each DEG, resulting in a correlation matrix.
 ```{r otu_degs_correlation, eval=FALSE, echo=TRUE, message=FALSE, warning=FALSE}
-otu_ids <- rownames(tax_df)[!is.na(tax_df$Phylum)]
-otu_df <- otu_df[colnames(otu_df) %in% otu_ids]
+otu_ids <- rownames(taxa_df)[!is.na(taxa_df$Phylum)]
+otu_df <- otu_df[, !duplicated(t(otu_df))]
+otu_df <- otu_df[, colnames(otu_df) %in% otu_ids]
                     
 rownames(otu_df) <- paste0("Sample_", seq_len(nrow(otu_df)))
 colnames(otu_df) <- paste0("OTU_", seq_len(ncol(otu_df)))
@@ -496,11 +492,11 @@ for (i in seq_len(nrow(otu_transformed))) {
   }
 }
 
-corrplot(correlation_matrix[1:30, ],
+corrplot(correlation_matrix[1:14, ],
          method = "color",
          tl.cex = 0.6,
          cl.cex = 0.6,
-         title = "Correlation between first 30 OTUs and identified DEGs (Tumor)",
+         title = "Correlation between first 14 OTUs and identified DEGs (Tumor)",
          mar = c(0, 0, 2, 0))
 ```
 <div style="display: flex; justify-context: center;">
